@@ -1,0 +1,18 @@
+# Environment variables
+.env
+
+# Python cache & virtual environment
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+env/
+venv/
+
+# Temporary audio & cache files
+*.wav
+*.mp3
+voice_cache/
+!ref/
+!models/

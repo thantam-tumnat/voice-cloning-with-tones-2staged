@@ -1,0 +1,211 @@
+{
+  "info": {
+    "_postman_id": "8b4f92e3-c2d5-4e9f-9134-f2d5b92c3d56",
+    "name": "Thai TTS Tone & RVC Voice Conversion Studio",
+    "description": "Postman Collection for Thai Emotion-Instruction TTS with Retrieval-based Voice Conversion (RVC).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. System & Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            }
+          }
+        },
+        {
+          "name": "Root Web UI",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": ["{{baseUrl}}"],
+              "path": [""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Tone Annotation & Scripting",
+      "item": [
+        {
+          "name": "Speak (End-to-End Preparation)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"[calm] หายใจเข้าลึกๆ ผ่อนคลาย แล้วค่อยๆ ปล่อยวางทุกอย่างลงนะ\",\n  \"guidance\": \"สงบ นุ่มนวล ผ่อนคลาย\",\n  \"engine\": \"rvc\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/speak",
+              "host": ["{{baseUrl}}"],
+              "path": ["speak"]
+            }
+          }
+        },
+        {
+          "name": "Annotate Clauses Only",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"ขอโทษนะ ฉันไม่ได้ตั้งใจ แต่เธอก็ไม่ฟังฉันเลย\",\n  \"guidance\": \"ท่อนแรกเศร้า ท่อนหลังโกรธ\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/annotate",
+              "host": ["{{baseUrl}}"],
+              "path": ["annotate"]
+            }
+          }
+        },
+        {
+          "name": "Render Segments",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"segments\": [\n    {\n      \"text\": \"ขอโทษนะ ฉันไม่ได้ตั้งใจ \",\n      \"tone\": \"sad\",\n      \"intensity\": 2\n    },\n    {\n      \"text\": \"แต่เธอก็ไม่ฟังฉันเลย\",\n      \"tone\": \"angry\",\n      \"intensity\": 3\n    }\n  ],\n  \"engine\": \"rvc\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/render",
+              "host": ["{{baseUrl}}"],
+              "path": ["render"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. RVC Models & Speakers",
+      "item": [
+        {
+          "name": "List RVC Speakers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/speakers",
+              "host": ["{{baseUrl}}"],
+              "path": ["speakers"]
+            }
+          }
+        },
+        {
+          "name": "Delete Speaker",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/speakers/test_voice",
+              "host": ["{{baseUrl}}"],
+              "path": ["speakers", "test_voice"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Speech Synthesis & RVC Voice Conversion",
+      "item": [
+        {
+          "name": "Synthesize & RVC (JSON)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"[calm] หายใจเข้าลึกๆ ผ่อนคลาย แล้วค่อยๆ ปล่อยวางทุกอย่างลงนะ\",\n  \"speaker_id\": \"anime_girl\",\n  \"pitch_shift\": 12,\n  \"index_rate\": 0.75,\n  \"f0_method\": \"rmvpe\",\n  \"auto_annotate\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/synthesize",
+              "host": ["{{baseUrl}}"],
+              "path": ["synthesize"]
+            }
+          }
+        },
+        {
+          "name": "Synthesize with Upload (Form Data)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "text",
+                  "value": "ทดสอบการสังเคราะห์เสียงและแปลงเสียง RVC",
+                  "type": "text"
+                },
+                {
+                  "key": "pitch_shift",
+                  "value": "0",
+                  "type": "text"
+                },
+                {
+                  "key": "index_rate",
+                  "value": "0.75",
+                  "type": "text"
+                },
+                {
+                  "key": "f0_method",
+                  "value": "rmvpe",
+                  "type": "text"
+                },
+                {
+                  "key": "auto_annotate",
+                  "value": "true",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/synthesize/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["synthesize", "upload"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
