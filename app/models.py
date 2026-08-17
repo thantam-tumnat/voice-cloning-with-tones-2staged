@@ -20,6 +20,17 @@ class Segment(BaseModel):
     intensity: int = Field(default=2, ge=1, le=3)
 
 
+class TTSChunkInfo(BaseModel):
+    chunk_index: int
+    raw_text: str
+    clean_text: str  # The exact clean Thai text passed to TTS
+    tone: str
+    prosody_rate: str
+    prosody_pitch: str
+    voice: str
+    char_length: Optional[int] = None
+
+
 class AnnotateRequest(BaseModel):
     text: str = Field(min_length=1, max_length=5000)
     guidance: Optional[str] = Field(default=None, description="Optional custom emotion/tone guidance")
@@ -28,6 +39,8 @@ class AnnotateRequest(BaseModel):
 class AnnotateResponse(BaseModel):
     original: str
     segments: list[Segment]
+    clean_tts_text: Optional[str] = None
+    tts_chunks: Optional[List[TTSChunkInfo]] = None
     model_used: str
     fallback: bool  # True = fallback occurred
     fallback_reason: Optional[str] = None
@@ -55,6 +68,8 @@ class SpeakRequest(BaseModel):
 class SpeakResponse(BaseModel):
     engine: Literal["elevenlabs", "gemini", "voxcpm", "siangtts", "rvc"]
     text: str
+    clean_tts_text: Optional[str] = None
+    tts_chunks: Optional[List[TTSChunkInfo]] = None
     prompt: Optional[str] = None
     segments: list[Segment]
     model_used: str

@@ -254,10 +254,14 @@ class Annotator:
                     raw_labels=raw_labels,
                     max_segments=settings.max_segments
                 )
+                from app.services.tts_service import tts_service
+                tts_chunks, clean_tts_text = tts_service.build_tts_chunks(segments)
                 latency = round((time.perf_counter() - start_time) * 1000, 2)
                 return AnnotateResponse(
                     original=original_text,
                     segments=segments,
+                    clean_tts_text=clean_tts_text,
+                    tts_chunks=tts_chunks,
                     model_used=model,
                     fallback=False,
                     latency_ms=latency,
@@ -287,12 +291,16 @@ class Annotator:
             )
 
         merged_fallback = merge_segments(fallback_segments, max_segments=settings.max_segments)
+        from app.services.tts_service import tts_service
+        tts_chunks, clean_tts_text = tts_service.build_tts_chunks(merged_fallback)
         latency = round((time.perf_counter() - start_time) * 1000, 2)
         fallback_desc = f"API Unavailable ({', '.join(errors_encountered)}) -> Switched to Smart Rule-Based Emotion Engine" if errors_encountered else "Local Rule-Based Engine"
 
         return AnnotateResponse(
             original=original_text,
             segments=merged_fallback,
+            clean_tts_text=clean_tts_text,
+            tts_chunks=tts_chunks,
             model_used="rule-based-emotion-detector",
             fallback=True,
             fallback_reason=fallback_desc,

@@ -125,6 +125,8 @@ def speak_endpoint(req: SpeakRequest):
     return SpeakResponse(
         engine=req.engine,
         text=rendered.text,
+        clean_tts_text=annotated.clean_tts_text,
+        tts_chunks=annotated.tts_chunks,
         prompt=rendered.prompt,
         segments=annotated.segments,
         model_used=annotated.model_used,

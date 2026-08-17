@@ -65,6 +65,39 @@ class EmotionTTSService:
 
         return rate, pitch, voice
 
+    def build_tts_chunks(self, segments: list) -> Tuple[list, str]:
+        """
+        Build detailed TTS chunk debug info for each segment.
+        Returns (chunks_list, full_clean_text).
+        """
+        chunks = []
+        clean_parts = []
+        for idx, seg in enumerate(segments):
+            raw = getattr(seg, "text", str(seg))
+            tone_val = getattr(seg, "tone", "neutral")
+            if hasattr(tone_val, "value"):
+                tone_val = tone_val.value
+            clean = self.clean_text_for_speech(raw)
+            clean = normalize_thai_text(clean)
+            rate, pitch, voice = self.get_prosody_params(str(tone_val), clean)
+            
+            chunk_info = {
+                "chunk_index": idx + 1,
+                "raw_text": raw,
+                "clean_text": clean,
+                "tone": str(tone_val),
+                "prosody_rate": rate,
+                "prosody_pitch": pitch,
+                "voice": voice,
+                "char_length": len(clean),
+            }
+            chunks.append(chunk_info)
+            if clean:
+                clean_parts.append(clean)
+        
+        full_clean = " ".join(clean_parts)
+        return chunks, full_clean
+
     def synthesize(
         self,
         text: str,

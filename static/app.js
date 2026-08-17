@@ -275,6 +275,49 @@ document.addEventListener('DOMContentLoaded', () => {
     charCounter.textContent = `${len.toLocaleString()} ตัวอักษร`;
   });
 
+  // Prosody & TTS Chunk Helpers
+  function getProsodyForTone(tone) {
+    let t = (tone || 'neutral').toLowerCase();
+    let voice = 'th-TH-PremwadeeNeural';
+    let rate = '+0%';
+    let pitch = '+0Hz';
+    if (t === 'calm') { rate = '-12%'; pitch = '-4Hz'; }
+    else if (t === 'sad') { rate = '-15%'; pitch = '-8Hz'; }
+    else if (t === 'happy' || t === 'happily') { rate = '+10%'; pitch = '+8Hz'; }
+    else if (t === 'angry') { rate = '+15%'; pitch = '+10Hz'; }
+    else if (t === 'excited') { rate = '+20%'; pitch = '+12Hz'; }
+    else if (t === 'sarcastic') { rate = '-5%'; pitch = '+6Hz'; }
+    else if (t === 'nervous') { rate = '+8%'; pitch = '+5Hz'; }
+    return { rate, pitch, voice };
+  }
+
+  function cleanTagsForSpeech(text) {
+    let t = (text || '').replace(/\[[a-zA-Z\s]+\]/g, '');
+    t = t.replace(/\([a-zA-Z\s,.-ก-๙]+\)/g, '');
+    return t.trim();
+  }
+
+  function buildTTSChunks(segments) {
+    const chunks = [];
+    const cleanParts = [];
+    (segments || []).forEach((seg, idx) => {
+      const clean = cleanTagsForSpeech(seg.text);
+      const prosody = getProsodyForTone(seg.tone);
+      chunks.push({
+        chunk_index: idx + 1,
+        raw_text: seg.text,
+        clean_text: clean,
+        tone: seg.tone,
+        prosody_rate: prosody.rate,
+        prosody_pitch: prosody.pitch,
+        voice: prosody.voice,
+        char_length: clean.length
+      });
+      if (clean) cleanParts.push(clean);
+    });
+    return { chunks, clean_tts_text: cleanParts.join(' ') };
+  }
+
   // Tag Parsing & Sync Helper
   function parseSegmentsFromText(text) {
     if (!text || !text.trim()) return [];
@@ -351,10 +394,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentSegments = parseSegmentsFromText(val);
     renderSegmentsUI(currentSegments);
 
+    // Build actual clean TTS text chunks
+    const { chunks, clean_tts_text } = buildTTSChunks(currentSegments);
+
     // Synchronize Raw JSON Tab
     const currentJson = {
       engine: engineSelect.value,
       text: val,
+      clean_tts_text: clean_tts_text,
+      tts_chunks: chunks,
       prompt: geminiPromptEditable.value.trim() || null,
       segments: currentSegments,
       model_used: modelName.textContent || "custom-editor",
@@ -601,12 +649,15 @@ document.addEventListener('DOMContentLoaded', () => {
       // Synchronize Segments & JSON with the exact synthesized text & settings
       const currentSegments = parseSegmentsFromText(text);
       renderSegmentsUI(currentSegments);
+      const { chunks, clean_tts_text } = buildTTSChunks(currentSegments);
       
       const synthDiagnosticData = {
         action: "synthesize_and_rvc",
         status: "success",
         engine: engine,
         text: text,
+        clean_tts_text: clean_tts_text,
+        tts_chunks: chunks,
         prompt: geminiPromptEditable.value.trim() || null,
         segments: currentSegments,
         rvc_configuration: {
