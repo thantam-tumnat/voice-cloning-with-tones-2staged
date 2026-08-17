@@ -29,7 +29,11 @@ class AnnotateResponse(BaseModel):
     original: str
     segments: list[Segment]
     model_used: str
-    fallback: bool  # True = validate failed, fallback to all neutral
+    fallback: bool  # True = fallback occurred
+    fallback_reason: Optional[str] = None
+    latency_ms: Optional[float] = None
+    clauses_count: Optional[int] = None
+    timestamp: Optional[str] = None
 
 
 class RenderRequest(BaseModel):
@@ -55,6 +59,10 @@ class SpeakResponse(BaseModel):
     segments: list[Segment]
     model_used: str
     fallback: bool
+    fallback_reason: Optional[str] = None
+    latency_ms: Optional[float] = None
+    clauses_count: Optional[int] = None
+    timestamp: Optional[str] = None
 
 
 class SpeakerInfo(BaseModel):

@@ -129,7 +129,12 @@ def speak_endpoint(req: SpeakRequest):
         segments=annotated.segments,
         model_used=annotated.model_used,
         fallback=annotated.fallback,
+        fallback_reason=annotated.fallback_reason,
+        latency_ms=annotated.latency_ms,
+        clauses_count=annotated.clauses_count,
+        timestamp=annotated.timestamp,
     )
+
 
 
 # ---------------------------------------------------------------------------

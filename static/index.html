@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Thai TTS Tone Annotation & RVC Voice Studio</title>
+  <title>Thai TTS Tone & RVC Voice Studio | Gemini Tone Annotator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css?v=2.1.0">
 </head>
 <body>
@@ -14,29 +14,29 @@
     <!-- Header -->
     <header class="app-header">
       <div class="header-brand">
-        <div class="logo-badge">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <div class="brand-logo">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
             <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
             <line x1="12" y1="19" x2="12" y2="22"></line>
           </svg>
         </div>
-        <div>
-          <h1 class="app-title">Thai TTS Tone & RVC Voice Studio</h1>
-          <p class="app-subtitle">วิเคราะห์โทนอารมณ์ + สั่งสคริปต์พูดตามแท็ก + แปลงเสียงด้วย RVC (Retrieval-based Voice Conversion)</p>
+        <div class="brand-text">
+          <h1>Thai TTS Tone & RVC Voice Studio</h1>
+          <p class="brand-subtitle">ระบบจัดวางโทนอารมณ์ข้อความภาษาไทยอัตโนมัติด้วย LLM & สังเคราะห์เสียงพร้อมเปลี่ยนเสียงด้วย RVC</p>
         </div>
       </div>
       <div class="header-meta">
-        <div id="health-status" class="status-indicator">
+        <div class="status-indicator" id="health-status">
           <span class="status-dot"></span>
-          <span class="status-label">กำลังเชื่อมต่อ...</span>
+          <span class="status-label">กำลังตรวจสอบ API...</span>
         </div>
       </div>
     </header>
 
     <!-- Main Workspace -->
-    <main class="workspace-grid">
-      <!-- Left Column: Input, Presets & Voice Clone -->
+    <main class="studio-grid">
+      <!-- Left Column: Input & Controls -->
       <section class="card input-card">
         <div class="card-header">
           <div class="card-title-group">
@@ -46,47 +46,66 @@
           <span id="char-counter" class="char-counter">0 ตัวอักษร</span>
         </div>
 
-        <div class="preset-section">
-          <span class="preset-label">ตัวอย่างข้อความทดสอบ:</span>
-          <div class="preset-pills">
-            <button type="button" class="preset-btn" data-preset="calm">☕ [calm] สงบนุ่มนวล</button>
-            <button type="button" class="preset-btn" data-preset="shift">😢+😡 เศร้าปนโกรธ</button>
-            <button type="button" class="preset-btn" data-preset="sarcastic">😏 ประชดประชัน</button>
-            <button type="button" class="preset-btn" data-preset="happy">🎉 ดีใจสุดขีด</button>
-            <button type="button" class="preset-btn" data-preset="news">📰 ข่าวสาร/เป็นกลาง</button>
+        <!-- Presets Toolbar -->
+        <div class="presets-section">
+          <span class="presets-label">ตัวอย่างข้อความทดสอบ:</span>
+          <div class="presets-grid">
+            <button type="button" class="preset-btn" data-preset="calm">
+              <span class="preset-icon">🧘</span>
+              <span>[calm] สงบนุ่มนวล</span>
+            </button>
+            <button type="button" class="preset-btn" data-preset="sad-angry">
+              <span class="preset-icon">😢 + 😡</span>
+              <span>เศร้าปนโกรธ</span>
+            </button>
+            <button type="button" class="preset-btn" data-preset="sarcastic">
+              <span class="preset-icon">😏</span>
+              <span>ประชดประชัน</span>
+            </button>
+            <button type="button" class="preset-btn" data-preset="happy">
+              <span class="preset-icon">🎉</span>
+              <span>ดีใจสุดขีด</span>
+            </button>
+            <button type="button" class="preset-btn" data-preset="news">
+              <span class="preset-icon">📰</span>
+              <span>ข่าวสาร/เป็นกลาง</span>
+            </button>
           </div>
         </div>
 
-        <div class="textarea-wrapper">
+        <!-- Text Input Area -->
+        <div class="form-group">
           <label for="text-input" class="field-label">ข้อความภาษาไทย หรือ สคริปต์ที่มีแท็ก [emotion]:</label>
           <textarea 
             id="text-input" 
-            placeholder="พิมพ์ข้อความภาษาไทย เช่น: [calm] หายใจเข้าลึกๆ ผ่อนคลาย แล้วค่อยๆ ปล่อยวางทุกอย่างลงนะ" 
-            rows="5"
+            class="custom-textarea" 
+            rows="6" 
+            placeholder="พิมพ์หรือวางข้อความภาษาไทยที่นี่... ตัวอย่าง: ยินดีด้วยนะ! ในที่สุดก็ทำสำเร็จแล้ว สุดยอดไปเลย!"
             spellcheck="false"
           ></textarea>
         </div>
 
-        <div class="guidance-wrapper">
+        <!-- Custom Tone Guidance -->
+        <div class="form-group">
           <label for="guidance-input" class="field-label">
-            <span>คำแนะนำอารมณ์เพิ่มเติม (Custom Prompt / Guidance - ไม่บังคับ):</span>
+            คำแนะนำอารมณ์เพิ่มเติม (Custom Prompt / Guidance - ไม่บังคับ):
           </label>
           <input 
             type="text" 
             id="guidance-input" 
-            class="custom-input"
-            placeholder="เช่น: ขอให้เน้นประชดอย่างแรง, ท่อนแรกเศร้าท่อนหลังโกรธจัด, น้ำเสียงนุ่มนวล"
-          />
+            class="custom-input" 
+            placeholder="เช่น: เน้นความตื่นเต้นและดีใจช่วงท้าย, พูดแบบประชดเล็กน้อย, อ่านนุ่มนวล"
+          >
         </div>
 
-        <!-- Voice Conversion & Engine Options -->
-        <div class="voice-config-section">
-          <div class="config-row">
+        <!-- Engine & Voice Settings Row -->
+        <div class="settings-panel">
+          <div class="settings-row">
             <div class="form-group flex-1">
               <label for="engine-select" class="field-label">TTS & Conversion Pipeline:</label>
               <select id="engine-select" class="custom-select">
                 <option value="rvc" selected>Emotion TTS + RVC Voice Changer ⭐</option>
-                <option value="gemini">Gemini (Prompt + Clean Text)</option>
+                <option value="gemini">Gemini Speech (Prompt-based Emotion)</option>
                 <option value="elevenlabs">ElevenLabs (Inline Audio Tags)</option>
                 <option value="voxcpm">SiangTTS (VoxCPM2 Instruction)</option>
               </select>
@@ -163,8 +182,10 @@
             </button>
             <button type="button" id="btn-synthesize-direct" class="btn btn-accent">
               <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
                 <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" y1="19" x2="12" y2="23"></line>
+                <line x1="8" y1="23" x2="16" y2="23"></line>
               </svg>
               <span>🎙️ สร้างเสียงพูด (Synthesize & RVC)</span>
             </button>
@@ -180,7 +201,8 @@
             <h2>สคริปต์และสตูดิโอเสียง (Output & Audio Studio)</h2>
           </div>
           <div id="model-badge" class="model-badge hidden">
-            <span id="model-name">gemini-2.5-flash</span>
+            <span id="model-name" class="model-name-tag">gemini-3.5-flash</span>
+            <span id="latency-tag" class="latency-tag">⏱️ 0ms</span>
             <span id="fallback-indicator" class="badge-tag normal">Normal</span>
           </div>
         </div>
@@ -214,7 +236,7 @@
           </button>
           <button type="button" class="tab-btn" data-tab="raw">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-            Raw JSON
+            Raw JSON & Diagnostics
           </button>
         </div>
 
@@ -269,7 +291,7 @@
                 <textarea 
                   id="output-editable-text" 
                   class="output-textarea" 
-                  rows="5"
+                  rows="5" 
                   placeholder="ผลลัพธ์สคริปต์พร้อม Tag/Instruction จะปรากฏที่นี่..."
                   spellcheck="false"
                 ></textarea>
@@ -293,7 +315,7 @@
                 <textarea 
                   id="gemini-prompt-editable" 
                   class="prompt-textarea" 
-                  rows="3"
+                  rows="3" 
                   spellcheck="false"
                 ></textarea>
               </div>
@@ -305,8 +327,15 @@
             <div id="segments-container" class="segments-list"></div>
           </div>
 
-          <!-- Tab 3: Raw JSON -->
+          <!-- Tab 3: Raw JSON & Diagnostics -->
           <div id="tab-raw" class="tab-pane hidden">
+            <div class="json-header-bar">
+              <span class="json-header-title">📊 Full Pipeline Diagnostic & Result JSON:</span>
+              <button type="button" class="btn btn-sm btn-outline" id="btn-copy-json" title="คัดลอก JSON ทั้งหมด">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                <span>คัดลอก JSON</span>
+              </button>
+            </div>
             <pre id="raw-json" class="json-viewer"></pre>
           </div>
         </div>
@@ -329,6 +358,6 @@
     </footer>
   </div>
 
-  <script src="/static/app.js?v=2.1.0"></script>
+  <script src="/static/app.js?v=2.2.0"></script>
 </body>
 </html>

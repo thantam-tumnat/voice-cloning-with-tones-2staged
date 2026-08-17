@@ -1,6 +1,8 @@
 import json
+import time
 import logging
 import re
+from datetime import datetime
 from typing import List, Tuple, Any, Optional
 from app.config import settings
 from app.models import Segment, Tone, AnnotateResponse, LLMAnnotationResult
@@ -215,25 +217,32 @@ class Annotator:
         Annotate clauses with emotional tones.
         Executes primary model -> fallback models -> intelligent heuristic tone extraction.
         """
+        start_time = time.perf_counter()
+        now_iso = datetime.now().isoformat()
+        
         if not clauses:
             return AnnotateResponse(
                 original=original_text,
                 segments=[],
                 model_used="none",
-                fallback=False
+                fallback=False,
+                latency_ms=0.0,
+                clauses_count=0,
+                timestamp=now_iso,
             )
 
         provider = settings.llm_provider.lower()
         if provider == "gemini":
             models_to_try = [
                 settings.gemini_model,
-                "gemini-3.7-flash",
                 "gemini-3.5-flash",
+                "gemini-3.7-flash",
                 "gemini-3.1-flash-lite",
             ]
         else:
             models_to_try = [settings.llm_model, settings.llm_escalate_model]
 
+        errors_encountered = []
         for model in models_to_try:
             if not model:
                 continue
@@ -245,13 +254,20 @@ class Annotator:
                     raw_labels=raw_labels,
                     max_segments=settings.max_segments
                 )
+                latency = round((time.perf_counter() - start_time) * 1000, 2)
                 return AnnotateResponse(
                     original=original_text,
                     segments=segments,
                     model_used=model,
-                    fallback=False
+                    fallback=False,
+                    latency_ms=latency,
+                    clauses_count=len(clauses),
+                    timestamp=now_iso,
                 )
             except Exception as err:
+                err_msg = str(err)
+                short_err = "429 RateLimit" if "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg else ("503 Busy" if "503" in err_msg else "API Error")
+                errors_encountered.append(f"{model}: {short_err}")
                 logger.warning(f"Model {model} ({provider}) failed: {err}")
 
         # Intelligent Fallback: Extract tone from tags or keywords
@@ -271,12 +287,18 @@ class Annotator:
             )
 
         merged_fallback = merge_segments(fallback_segments, max_segments=settings.max_segments)
+        latency = round((time.perf_counter() - start_time) * 1000, 2)
+        fallback_desc = f"API Unavailable ({', '.join(errors_encountered)}) -> Switched to Smart Rule-Based Emotion Engine" if errors_encountered else "Local Rule-Based Engine"
 
         return AnnotateResponse(
             original=original_text,
             segments=merged_fallback,
             model_used="rule-based-emotion-detector",
-            fallback=True
+            fallback=True,
+            fallback_reason=fallback_desc,
+            latency_ms=latency,
+            clauses_count=len(clauses),
+            timestamp=now_iso,
         )
 
 

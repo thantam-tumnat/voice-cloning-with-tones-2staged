@@ -33,7 +33,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // DOM Elements - Output / Editor & Audio Player Side
   const modelBadge = document.getElementById('model-badge');
   const modelName = document.getElementById('model-name');
+  const latencyTag = document.getElementById('latency-tag');
   const fallbackIndicator = document.getElementById('fallback-indicator');
+  const btnCopyJson = document.getElementById('btn-copy-json');
 
   const tabButtons = document.querySelectorAll('.tab-btn');
   const tabPanes = document.querySelectorAll('.tab-pane');
@@ -518,15 +520,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderResults(data, engine) {
     emptyState.classList.add('hidden');
-    // Show model badge
+    // Show model badge & latency
     modelBadge.classList.remove('hidden');
     modelName.textContent = data.model_used;
+    if (latencyTag && data.latency_ms !== undefined) {
+      latencyTag.textContent = `⏱️ ${data.latency_ms}ms`;
+      latencyTag.classList.remove('hidden');
+    }
+
     if (data.fallback) {
       fallbackIndicator.className = 'badge-tag fallback';
-      fallbackIndicator.textContent = 'Fallback Neutral';
+      fallbackIndicator.textContent = data.fallback_reason ? 'Fallback Rule Engine' : 'Fallback';
+      fallbackIndicator.title = data.fallback_reason || 'Using rule-based emotion engine';
     } else {
       fallbackIndicator.className = 'badge-tag normal';
-      fallbackIndicator.textContent = 'Normal';
+      fallbackIndicator.textContent = 'LLM Verified';
+      fallbackIndicator.title = `Processed by ${data.model_used}`;
     }
 
     // 1. Populate Editable Output Textarea
@@ -560,7 +569,7 @@ document.addEventListener('DOMContentLoaded', () => {
       segmentsContainer.appendChild(item);
     });
 
-    // 3. Raw JSON Tab
+    // 3. Raw JSON Tab with structured diagnostics
     rawJson.textContent = JSON.stringify(data, null, 2);
 
     // Default to editor tab
@@ -570,6 +579,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Copy helper
   function setupCopyBtn(btn, getSourceText) {
+    if (!btn) return;
     btn.addEventListener('click', async () => {
       const text = getSourceText();
       if (!text) return;
@@ -591,6 +601,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   setupCopyBtn(btnCopyOutput, () => outputEditableText.value);
   setupCopyBtn(btnCopyPrompt, () => geminiPromptEditable.value);
+  setupCopyBtn(btnCopyJson, () => rawJson.textContent);
+
 
   btnProcess.addEventListener('click', handleAnnotate);
   btnSynthesizeDirect.addEventListener('click', handleSynthesize);
