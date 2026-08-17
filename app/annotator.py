@@ -1,10 +1,12 @@
 import json
 import logging
+import re
 from typing import List, Tuple, Any, Optional
 from app.config import settings
 from app.models import Segment, Tone, AnnotateResponse, LLMAnnotationResult
 from app.prompts import SYSTEM_PROMPT, FEW_SHOT_EXAMPLES, ANNOTATE_TOOL
 from app.validator import validate_and_build_segments, ValidationError
+from app.merger import merge_segments
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +76,49 @@ def build_gemini_prompt(clauses: List[str], guidance: Optional[str] = None) -> s
         target_payload["user_tone_guidance"] = guidance.strip()
 
     return f"{few_shot_text}\n--- Target Task ---\nInput:\n{json.dumps(target_payload, ensure_ascii=False)}\nOutput:"
+
+
+# ---------------------------------------------------------------------------
+# Heuristic Fallback Helper
+# ---------------------------------------------------------------------------
+
+def detect_heuristic_tone(text: str, guidance: Optional[str] = None) -> Tone:
+    """Intelligently detects emotion from bracket tags or Thai emotion keywords."""
+    combined = f"{guidance or ''} {text}".lower()
+
+    # 1. Bracket tag detection
+    if "[calm]" in combined or "(calm" in combined:
+        return Tone.CALM
+    if "[sad]" in combined or "(sad" in combined:
+        return Tone.SAD
+    if "[angry]" in combined or "(angry" in combined:
+        return Tone.ANGRY
+    if "[happily]" in combined or "[happy]" in combined or "(happy" in combined:
+        return Tone.HAPPY
+    if "[excited]" in combined or "(excited" in combined:
+        return Tone.EXCITED
+    if "[nervous]" in combined or "(nervous" in combined:
+        return Tone.NERVOUS
+    if "[sarcastic]" in combined or "(sarcastic" in combined:
+        return Tone.SARCASTIC
+
+    # 2. Thai Keyword Heuristic
+    if any(k in combined for k in ["excited", "ตื่นเต้น", "สุดยอด", "ดีใจสุดขีด", "เย้", "สำเร็จแล้ว"]):
+        return Tone.EXCITED
+    if any(k in combined for k in ["happy", "ดีใจ", "ร่าเริง", "ยินดี", "มีความสุข", "ยิ้ม"]):
+        return Tone.HAPPY
+    if any(k in combined for k in ["sad", "เศร้า", "เสียใจ", "ขอโทษ", "ตัดพ้อ", "ผิดหวัง"]):
+        return Tone.SAD
+    if any(k in combined for k in ["angry", "โกรธ", "ดุดัน", "โมโห", "เสียงแข็ง", "ไม่พอใจ", "พังหมด"]):
+        return Tone.ANGRY
+    if any(k in combined for k in ["calm", "สงบ", "นุ่มนวล", "ผ่อนคลาย", "ช้าๆ", "หายใจเข้า"]):
+        return Tone.CALM
+    if any(k in combined for k in ["sarcastic", "ประชด", "แดกดัน", "แหม", "เก่งจังเลย"]):
+        return Tone.SARCASTIC
+    if any(k in combined for k in ["nervous", "ประหม่า", "ลังเล", "กลัว", "กังวล"]):
+        return Tone.NERVOUS
+
+    return Tone.NEUTRAL
 
 
 # ---------------------------------------------------------------------------
@@ -147,7 +192,6 @@ class Annotator:
             parsed = LLMAnnotationResult.model_validate_json(response.text)
             return [label.model_dump() for label in parsed.labels]
         except Exception as e:
-            # Fallback to json dict parsing
             try:
                 data = json.loads(response.text)
                 if isinstance(data, dict) and "labels" in data:
@@ -169,7 +213,7 @@ class Annotator:
     def annotate(self, original_text: str, clauses: List[str], guidance: Optional[str] = None) -> AnnotateResponse:
         """
         Annotate clauses with emotional tones.
-        Executes primary model -> escalation model -> fallback neutral.
+        Executes primary model -> fallback models -> intelligent heuristic tone extraction.
         """
         if not clauses:
             return AnnotateResponse(
@@ -181,60 +225,57 @@ class Annotator:
 
         provider = settings.llm_provider.lower()
         if provider == "gemini":
-            primary_model = settings.gemini_model
-            escalate_model = settings.gemini_escalate_model
+            models_to_try = [
+                settings.gemini_model,
+                "gemini-3.7-flash",
+                "gemini-3.5-flash",
+                "gemini-3.1-flash-lite",
+            ]
         else:
-            primary_model = settings.llm_model
-            escalate_model = settings.llm_escalate_model
+            models_to_try = [settings.llm_model, settings.llm_escalate_model]
 
-        # Attempt 1: Primary Model
-        try:
-            raw_labels = self._run_provider(provider, primary_model, clauses, guidance=guidance)
-            segments = validate_and_build_segments(
-                original_text=original_text,
-                clauses=clauses,
-                raw_labels=raw_labels,
-                max_segments=settings.max_segments
-            )
-            return AnnotateResponse(
-                original=original_text,
-                segments=segments,
-                model_used=primary_model,
-                fallback=False
-            )
-        except Exception as err:
-            logger.warning(f"Primary model {primary_model} ({provider}) failed: {err}. Escalating to {escalate_model}")
+        for model in models_to_try:
+            if not model:
+                continue
+            try:
+                raw_labels = self._run_provider(provider, model, clauses, guidance=guidance)
+                segments = validate_and_build_segments(
+                    original_text=original_text,
+                    clauses=clauses,
+                    raw_labels=raw_labels,
+                    max_segments=settings.max_segments
+                )
+                return AnnotateResponse(
+                    original=original_text,
+                    segments=segments,
+                    model_used=model,
+                    fallback=False
+                )
+            except Exception as err:
+                logger.warning(f"Model {model} ({provider}) failed: {err}")
 
-        # Attempt 2: Escalation Model
-        try:
-            raw_labels = self._run_provider(provider, escalate_model, clauses, guidance=guidance)
-            segments = validate_and_build_segments(
-                original_text=original_text,
-                clauses=clauses,
-                raw_labels=raw_labels,
-                max_segments=settings.max_segments
-            )
-            return AnnotateResponse(
-                original=original_text,
-                segments=segments,
-                model_used=escalate_model,
-                fallback=False
-            )
-        except Exception as err:
-            logger.error(f"Escalation model {escalate_model} ({provider}) failed: {err}. Falling back to neutral.")
+        # Intelligent Fallback: Extract tone from tags or keywords
+        detected_tone = detect_heuristic_tone(original_text, guidance=guidance)
+        clean_clauses = [re.sub(r"\[[a-zA-Z\s]+\]", "", c).strip() for c in clauses]
+        clean_clauses = [c for c in clean_clauses if c] or [original_text]
 
-        # Attempt 3: Safe Fallback
-        fallback_segments = [
-            Segment(
-                text=original_text,
-                tone=Tone.NEUTRAL,
-                intensity=2
+        fallback_segments = []
+        for c in clean_clauses:
+            clause_tone = detect_heuristic_tone(c, guidance=guidance) or detected_tone
+            fallback_segments.append(
+                Segment(
+                    text=c,
+                    tone=clause_tone if clause_tone != Tone.NEUTRAL else detected_tone,
+                    intensity=2
+                )
             )
-        ]
+
+        merged_fallback = merge_segments(fallback_segments, max_segments=settings.max_segments)
+
         return AnnotateResponse(
             original=original_text,
-            segments=fallback_segments,
-            model_used="fallback-neutral",
+            segments=merged_fallback,
+            model_used="rule-based-emotion-detector",
             fallback=True
         )
 
