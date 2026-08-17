@@ -275,14 +275,99 @@ document.addEventListener('DOMContentLoaded', () => {
     charCounter.textContent = `${len.toLocaleString()} ตัวอักษร`;
   });
 
-  // Character Counter & Live Highlight for Output Textarea
+  // Tag Parsing & Sync Helper
+  function parseSegmentsFromText(text) {
+    if (!text || !text.trim()) return [];
+    const tagPattern = /\[(calm|sad|happy|happily|angry|excited|nervous|sarcastic|neutral)\]/gi;
+    const matches = [...text.matchAll(tagPattern)];
+    
+    if (matches.length === 0) {
+      return [{
+        text: text.trim(),
+        tone: 'neutral',
+        intensity: 2
+      }];
+    }
+    
+    const segments = [];
+    if (matches[0].index > 0) {
+      const leading = text.substring(0, matches[0].index).trim();
+      if (leading) {
+        segments.push({ text: leading, tone: 'neutral', intensity: 2 });
+      }
+    }
+    
+    for (let i = 0; i < matches.length; i++) {
+      const match = matches[i];
+      let tone = match[1].toLowerCase();
+      if (tone === 'happily') tone = 'happy';
+      
+      const startOfText = match.index + match[0].length;
+      const endOfText = (i + 1 < matches.length) ? matches[i + 1].index : text.length;
+      const segmentText = text.substring(startOfText, endOfText).trim();
+      
+      if (segmentText) {
+        segments.push({
+          text: segmentText,
+          tone: tone,
+          intensity: 2
+        });
+      }
+    }
+    
+    return segments.length > 0 ? segments : [{ text: text.trim(), tone: 'neutral', intensity: 2 }];
+  }
+
+  function renderSegmentsUI(segments) {
+    segmentsContainer.innerHTML = '';
+    if (!segments || segments.length === 0) {
+      segmentsContainer.innerHTML = '<div style="color:var(--text-muted); padding:10px;">ไม่มีข้อมูล Segments</div>';
+      return;
+    }
+    segments.forEach((seg, idx) => {
+      const item = document.createElement('div');
+      item.className = `segment-item border-${seg.tone}`;
+      item.innerHTML = `
+        <div class="segment-meta">
+          <div class="segment-meta-left">
+            <span class="seg-index">#${idx + 1}</span>
+            <span class="tone-chip tone-${seg.tone}">${seg.tone}</span>
+          </div>
+          <span class="intensity-stars">${formatIntensityStars(seg.intensity)}</span>
+        </div>
+        <div class="segment-text">${escapeHtml(seg.text)}</div>
+      `;
+      segmentsContainer.appendChild(item);
+    });
+  }
+
+  // Character Counter, Live Highlight, Segment Sync & JSON Sync
   function updateOutputPreview() {
     const val = outputEditableText.value;
     outputCharCounter.textContent = `${val.length.toLocaleString()} ตัวอักษร`;
     liveTagPreview.innerHTML = highlightAudioTags(escapeHtml(val)) || '<span style="color:var(--text-muted);">ไม่มีข้อความ</span>';
+
+    // Synchronize Segments Tab
+    const currentSegments = parseSegmentsFromText(val);
+    renderSegmentsUI(currentSegments);
+
+    // Synchronize Raw JSON Tab
+    const currentJson = {
+      engine: engineSelect.value,
+      text: val,
+      prompt: geminiPromptEditable.value.trim() || null,
+      segments: currentSegments,
+      model_used: modelName.textContent || "custom-editor",
+      fallback: fallbackIndicator.classList.contains('fallback'),
+      timestamp: new Date().toISOString()
+    };
+    rawJson.textContent = JSON.stringify(currentJson, null, 2);
   }
 
   outputEditableText.addEventListener('input', updateOutputPreview);
+  if (geminiPromptEditable) {
+    geminiPromptEditable.addEventListener('input', updateOutputPreview);
+  }
 
   // Presets click
   presetButtons.forEach(btn => {
@@ -445,6 +530,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cfgValue = parseFloat(paramCfg.value) || 2.5;
     const guidance = guidanceInput.value.trim();
 
+    const synthStartTime = performance.now();
     showLoading(true, '🎙️ กำลังสังเคราะห์เสียง & แปลงเสียงผ่าน RVC...');
 
     try {
@@ -497,25 +583,58 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       currentAudioUrl = URL.createObjectURL(audioBlob);
 
+      const synthLatency = Math.round(performance.now() - synthStartTime);
+
       // Play audio in player
       audioPlayer.src = currentAudioUrl;
       btnDownloadAudio.href = currentAudioUrl;
       btnDownloadAudio.download = `rvc_${speakerId || 'voice'}_${Date.now()}.wav`;
       audioPlayerCard.classList.remove('hidden');
+      emptyState.classList.add('hidden');
       audioPlayer.play().catch(() => {});
 
-      // Also trigger text annotation render if output was empty
-      if (!outputEditableText.value.trim()) {
-        handleAnnotate();
-      } else {
-        const activeTab = document.querySelector('.tab-btn.active').getAttribute('data-tab');
-        document.getElementById(`tab-${activeTab}`).classList.remove('hidden');
+      if (latencyTag) {
+        latencyTag.textContent = `⏱️ ${synthLatency}ms`;
+        latencyTag.classList.remove('hidden');
       }
+
+      // Synchronize Segments & JSON with the exact synthesized text & settings
+      const currentSegments = parseSegmentsFromText(text);
+      renderSegmentsUI(currentSegments);
+      
+      const synthDiagnosticData = {
+        action: "synthesize_and_rvc",
+        status: "success",
+        engine: engine,
+        text: text,
+        prompt: geminiPromptEditable.value.trim() || null,
+        segments: currentSegments,
+        rvc_configuration: {
+          speaker_id: speakerId || "base_voice",
+          pitch_shift: pitchShift,
+          index_rate: indexRate,
+          f0_method: f0Method,
+          cfg_value: cfgValue
+        },
+        latency_ms: synthLatency,
+        timestamp: new Date().toISOString()
+      };
+      rawJson.textContent = JSON.stringify(synthDiagnosticData, null, 2);
+
+      // If output was empty, populate with input
+      if (!outputEditableText.value.trim()) {
+        outputEditableText.value = text;
+        updateOutputPreview();
+      }
+
+      const activeTab = document.querySelector('.tab-btn.active').getAttribute('data-tab');
+      document.getElementById(`tab-${activeTab}`).classList.remove('hidden');
     } catch (err) {
       alert(`เกิดข้อผิดพลาดในการสังเคราะห์เสียง: ${err.message}`);
     } finally {
       showLoading(false);
     }
+
   }
 
   function renderResults(data, engine) {
