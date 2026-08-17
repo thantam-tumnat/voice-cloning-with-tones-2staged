@@ -40,5 +40,6 @@ def test_rvc_renderer():
         Segment(text="ทำไมไม่ฟังเลย", tone=Tone.ANGRY, intensity=2),
     ]
     res = renderer.render(segments)
-    assert res.text == "ขอโทษนะ ทำไมไม่ฟังเลย"
+    assert "[sad]" in res.text
+    assert "[angry]" in res.text
     assert "เศร้า" in res.prompt or "โกรธ" in res.prompt

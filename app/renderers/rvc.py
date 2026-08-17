@@ -2,6 +2,17 @@ from typing import List
 from app.models import Segment, Tone, RenderResponse
 from app.renderers.base import BaseRenderer
 
+RVC_TAG_MAPPING = {
+    Tone.NEUTRAL: "",
+    Tone.SAD: "[sad]",
+    Tone.HAPPY: "[happily]",
+    Tone.ANGRY: "[angry]",
+    Tone.EXCITED: "[excited]",
+    Tone.CALM: "[calm]",
+    Tone.NERVOUS: "[nervous]",
+    Tone.SARCASTIC: "[sarcastic]",
+}
+
 RVC_EMOTION_PROMPT_MAP = {
     Tone.NEUTRAL: "น้ำเสียงปกติ เป็นธรรมชาติ",
     Tone.SAD: "น้ำเสียงเศร้า สั่นเครือ แฝงความเสียใจ",
@@ -16,19 +27,30 @@ RVC_EMOTION_PROMPT_MAP = {
 
 class RVCRenderer(BaseRenderer):
     """
-    Renders emotional segments into instruction prompts and text for
-    Emotion TTS -> RVC Voice conversion pipeline.
+    Renders emotional segments into inline audio tags [tag] and instruction prompts
+    for the Emotion TTS -> RVC Voice conversion pipeline.
     """
     def render(self, segments: List[Segment]) -> RenderResponse:
         if not segments:
             return RenderResponse(text="", prompt=None)
 
-        clean_text = "".join(seg.text for seg in segments)
+        # 1. Build tagged text with [tag] prefixes
+        result_parts = []
+        for seg in segments:
+            tag = RVC_TAG_MAPPING.get(seg.tone, "")
+            if tag:
+                result_parts.append(f"{tag} {seg.text.strip()} ")
+            else:
+                result_parts.append(seg.text)
+
+        tagged_text = "".join(result_parts).strip()
+
+        # 2. Build emotion instruction prompt
         non_neutral = [s for s in segments if s.tone != Tone.NEUTRAL]
 
         if not non_neutral:
             prompt = "อ่านด้วยน้ำเสียงปกติ เป็นธรรมชาติ ชัดถ้อยชัดคำ"
-            return RenderResponse(text=clean_text, prompt=prompt)
+            return RenderResponse(text=tagged_text, prompt=prompt)
 
         # Single tone across entire text
         tones = {s.tone for s in segments}
@@ -36,7 +58,7 @@ class RVCRenderer(BaseRenderer):
             tone = list(tones)[0]
             desc = RVC_EMOTION_PROMPT_MAP.get(tone, "น้ำเสียงปกติ")
             prompt = f"อ่านด้วย{desc}"
-            return RenderResponse(text=clean_text, prompt=prompt)
+            return RenderResponse(text=tagged_text, prompt=prompt)
 
         # Multi-segment prompt breakdown
         parts = []
@@ -45,4 +67,4 @@ class RVCRenderer(BaseRenderer):
             parts.append(f"ท่อนที่ {idx} \"{seg.text.strip()}\" ({desc})")
 
         prompt = "อ่านออกเสียงโดยปรับอารมณ์ตามแต่ละท่อน:\n" + "\n".join(parts)
-        return RenderResponse(text=clean_text, prompt=prompt)
+        return RenderResponse(text=tagged_text, prompt=prompt)
