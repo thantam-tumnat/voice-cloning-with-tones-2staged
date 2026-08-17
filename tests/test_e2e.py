@@ -99,3 +99,17 @@ def test_fishspeech_synthesize():
     assert response.headers["content-type"] == "audio/wav"
     assert len(response.content) > 100
 
+
+def test_synthesize_bypass_rvc():
+    payload = {
+        "text": "ทดสอบการ Bypass RVC เพื่อฟังเสียงพูดต้นฉบับ",
+        "engine": "rvc",
+        "bypass_rvc": True,
+        "auto_annotate": False
+    }
+    response = client.post("/synthesize", json=payload)
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "audio/wav"
+    assert len(response.content) > 100
+
+

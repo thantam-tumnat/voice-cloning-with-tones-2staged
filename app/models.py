@@ -105,6 +105,7 @@ class SynthesizeRequest(BaseModel):
     cfg_value: float = Field(default=2.5, ge=1.0, le=10.0)
     inference_timesteps: int = Field(default=10, ge=4, le=50)
     auto_annotate: bool = True
+    bypass_rvc: bool = False
 
 
 class LLMClauseItem(BaseModel):

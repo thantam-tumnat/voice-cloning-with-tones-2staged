@@ -113,9 +113,15 @@
               </select>
             </div>
             <div class="form-group flex-1" id="speaker-group">
-              <label for="speaker-select" class="field-label">เลือกเสียง RVC (Target Voice Profile):</label>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label for="speaker-select" class="field-label" style="margin-bottom:0;">เลือกเสียง RVC (Target Voice Profile):</label>
+                <label style="display:inline-flex; align-items:center; gap:6px; font-size:0.8rem; color:var(--accent-primary); cursor:pointer; font-weight:500;">
+                  <input type="checkbox" id="bypass-rvc-checkbox" style="cursor:pointer; accent-color:var(--accent-primary);">
+                  <span>⚡ Bypass RVC (ฟังเสียง TTS แท้)</span>
+                </label>
+              </div>
               <select id="speaker-select" class="custom-select">
-                <option value="">-- ไม่แปลงเสียง (Base Voice) --</option>
+                <option value="">-- ไม่แปลงเสียง (Bypass RVC / Base Neural Voice) --</option>
               </select>
             </div>
           </div>

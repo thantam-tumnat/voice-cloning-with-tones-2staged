@@ -256,9 +256,10 @@ class RVCService:
         f0_method: str = "rmvpe",
         cfg_value: float = 2.5,
         inference_timesteps: int = 10,
+        bypass_rvc: bool = False,
     ) -> bytes:
         """
-        Full Pipeline: Emotion TTS -> RVC Voice Conversion -> 48kHz WAV Bytes.
+        Full Pipeline: Emotion TTS -> (Optional RVC Voice Conversion) -> 48kHz WAV Bytes.
         """
         from app.services.tts_service import tts_service
 
@@ -269,6 +270,18 @@ class RVCService:
             cfg_value=cfg_value,
             inference_timesteps=inference_timesteps,
         )
+
+        # Bypass RVC: return direct pure Neural TTS audio
+        if bypass_rvc or (not speaker_id and pitch_shift == 0):
+            out_sr = sr
+            audio_out = base_audio.astype(np.float32)
+            if out_sr != self._target_sample_rate:
+                num_samples = int(len(audio_out) * self._target_sample_rate / out_sr)
+                audio_out = signal.resample(audio_out, num_samples)
+                out_sr = self._target_sample_rate
+            out_buf = io.BytesIO()
+            sf.write(out_buf, audio_out, out_sr, format="WAV", subtype="PCM_16")
+            return out_buf.getvalue()
 
         # Step 2: Convert Voice using RVC
         converted_audio, out_sr = self.convert_voice(

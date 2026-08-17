@@ -230,6 +230,7 @@ async def synthesize_endpoint(req: SynthesizeRequest):
                 f0_method=req.f0_method,
                 cfg_value=req.cfg_value,
                 inference_timesteps=req.inference_timesteps,
+                bypass_rvc=req.bypass_rvc,
             )
             filename = "synthesized_rvc.wav"
 

@@ -61,6 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const audioPlayerCard = document.getElementById('audio-player-card');
   const audioPlayer = document.getElementById('audio-player');
   const btnDownloadAudio = document.getElementById('btn-download-audio');
+  const bypassRvcCheckbox = document.getElementById('bypass-rvc-checkbox');
 
   let selectedAudioFile = null;
   let currentAudioUrl = null;
@@ -169,6 +170,28 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   });
+
+  // Bypass RVC Toggle Handler
+  if (bypassRvcCheckbox) {
+    bypassRvcCheckbox.addEventListener('change', () => {
+      const isBypass = bypassRvcCheckbox.checked;
+      speakerSelect.disabled = isBypass;
+      paramPitch.disabled = isBypass;
+      paramIndexRate.disabled = isBypass;
+      paramF0Method.disabled = isBypass;
+      if (isBypass) {
+        speakerSelect.style.opacity = '0.5';
+        paramPitch.closest('.param-item').style.opacity = '0.5';
+        paramIndexRate.closest('.param-item').style.opacity = '0.5';
+        paramF0Method.closest('.param-item').style.opacity = '0.5';
+      } else {
+        speakerSelect.style.opacity = '1.0';
+        paramPitch.closest('.param-item').style.opacity = '1.0';
+        paramIndexRate.closest('.param-item').style.opacity = '1.0';
+        paramF0Method.closest('.param-item').style.opacity = '1.0';
+      }
+    });
+  }
 
   // Engine Switch Visibility & Toolbar Focus
   function updateEngineVisibility() {
@@ -657,6 +680,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const f0Method = paramF0Method.value || "rmvpe";
     const cfgValue = parseFloat(paramCfg.value) || 2.5;
     const guidance = guidanceInput.value.trim();
+    const isBypass = bypassRvcCheckbox ? bypassRvcCheckbox.checked : false;
 
     const synthStartTime = performance.now();
     showLoading(true, '🎙️ กำลังสังเคราะห์เสียง & แปลงเสียงผ่าน RVC...');
@@ -664,16 +688,19 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       let response;
       if (selectedAudioFile) {
-        // Upload custom audio / RVC model directly
+        // Multipart upload request
         const formData = new FormData();
         formData.append('text', text);
         formData.append('file', selectedAudioFile);
         if (guidance) formData.append('guidance', guidance);
+        formData.append('engine', engine);
         formData.append('pitch_shift', pitchShift);
         formData.append('index_rate', indexRate);
         formData.append('f0_method', f0Method);
         formData.append('cfg_value', cfgValue);
+        formData.append('inference_timesteps', 10);
         formData.append('auto_annotate', 'true');
+        formData.append('bypass_rvc', isBypass ? 'true' : 'false');
 
         response = await fetch(`${API_BASE}/synthesize/upload`, {
           method: 'POST',
@@ -688,14 +715,15 @@ document.addEventListener('DOMContentLoaded', () => {
           },
           body: JSON.stringify({
             text: text,
-            speaker_id: speakerId,
+            speaker_id: isBypass ? null : speakerId,
             guidance: guidance || null,
             engine: engine,
-            pitch_shift: pitchShift,
+            pitch_shift: isBypass ? 0 : pitchShift,
             index_rate: indexRate,
             f0_method: f0Method,
             cfg_value: cfgValue,
-            auto_annotate: true
+            auto_annotate: true,
+            bypass_rvc: isBypass
           })
         });
       }
@@ -732,17 +760,19 @@ document.addEventListener('DOMContentLoaded', () => {
       const { chunks, clean_tts_text } = buildTTSChunks(currentSegments);
       
       const synthDiagnosticData = {
-        action: "synthesize_and_rvc",
+        action: isBypass ? "synthesize_pure_tts (bypassed RVC)" : "synthesize_and_rvc",
         status: "success",
         engine: engine,
+        bypass_rvc: isBypass,
         text: text,
         clean_tts_text: clean_tts_text,
         tts_chunks: chunks,
         prompt: geminiPromptEditable.value.trim() || null,
         segments: currentSegments,
         rvc_configuration: {
-          speaker_id: speakerId || "base_voice",
-          pitch_shift: pitchShift,
+          bypassed: isBypass,
+          speaker_id: isBypass ? "none_bypassed" : (speakerId || "base_voice"),
+          pitch_shift: isBypass ? 0 : pitchShift,
           index_rate: indexRate,
           f0_method: f0Method,
           cfg_value: cfgValue
