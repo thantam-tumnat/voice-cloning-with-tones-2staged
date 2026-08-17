@@ -43,3 +43,27 @@ def test_rvc_renderer():
     assert "[sad]" in res.text
     assert "[angry]" in res.text
     assert "เศร้า" in res.prompt or "โกรธ" in res.prompt
+
+
+def test_cosyvoice_renderer():
+    renderer = get_renderer("cosyvoice")
+    segments = [
+        Segment(text="ยินดีด้วยนะ!", tone=Tone.EXCITED, intensity=3),
+        Segment(text="แต่เหนื่อยมากเลย", tone=Tone.SAD, intensity=2),
+    ]
+    res = renderer.render(segments)
+    assert "<instruct>" in res.text
+    assert "ยินดีด้วยนะ!" in res.text
+    assert "เหนื่อยมากเลย" in res.text
+
+
+def test_fishspeech_renderer():
+    renderer = get_renderer("fishspeech")
+    segments = [
+        Segment(text="ยินดีด้วยนะ!", tone=Tone.EXCITED, intensity=3),
+        Segment(text="แต่เหนื่อยมากเลย", tone=Tone.SAD, intensity=2),
+    ]
+    res = renderer.render(segments)
+    assert "[Tone:" in res.text
+    assert "ยินดีด้วยนะ!" in res.text
+

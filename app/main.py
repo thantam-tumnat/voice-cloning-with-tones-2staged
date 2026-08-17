@@ -21,6 +21,8 @@ from app.annotator import annotator
 from app.renderers import get_renderer
 from app.services.tts_service import tts_service
 from app.services.rvc_service import rvc_service
+from app.services.cosyvoice_service import cosyvoice_service
+from app.services.fishspeech_service import fishspeech_service
 from app.services.speaker_manager import speaker_manager
 
 
@@ -196,32 +198,48 @@ async def synthesize_endpoint(req: SynthesizeRequest):
     clean_text = text
 
     # If auto-annotate requested, extract emotions and build instruction prompt
-    if req.auto_annotate and not text.startswith("("):
+    engine_name = req.engine.lower()
+    if req.auto_annotate and not text.startswith("(") and not text.startswith("<"):
         clauses = segment_text(text)
         annotated = annotator.annotate(original_text=text, clauses=clauses, guidance=req.guidance)
-        renderer = get_renderer("rvc")
+        renderer = get_renderer(engine_name)
         rendered = renderer.render(annotated.segments)
         emotion_prompt = rendered.prompt or req.guidance
         clean_text = rendered.text or text
 
     try:
-        wav_bytes = rvc_service.synthesize_and_convert(
-            text=clean_text,
-            emotion_prompt=emotion_prompt,
-            speaker_id=req.speaker_id,
-            pitch_shift=req.pitch_shift,
-            index_rate=req.index_rate,
-            f0_method=req.f0_method,
-            cfg_value=req.cfg_value,
-            inference_timesteps=req.inference_timesteps,
-        )
+        if engine_name in ("cosyvoice", "cosyvoice2"):
+            wav_bytes = cosyvoice_service.synthesize(
+                text=clean_text,
+                speaker_id=req.speaker_id,
+            )
+            filename = "synthesized_cosyvoice.wav"
+        elif engine_name in ("fishspeech", "fish_speech"):
+            wav_bytes = fishspeech_service.synthesize(
+                text=clean_text,
+                speaker_id=req.speaker_id,
+            )
+            filename = "synthesized_fishspeech.wav"
+        else:
+            wav_bytes = rvc_service.synthesize_and_convert(
+                text=clean_text,
+                emotion_prompt=emotion_prompt,
+                speaker_id=req.speaker_id,
+                pitch_shift=req.pitch_shift,
+                index_rate=req.index_rate,
+                f0_method=req.f0_method,
+                cfg_value=req.cfg_value,
+                inference_timesteps=req.inference_timesteps,
+            )
+            filename = "synthesized_rvc.wav"
+
         return Response(
             content=wav_bytes,
             media_type="audio/wav",
-            headers={"Content-Disposition": 'inline; filename="synthesized_rvc.wav"'},
+            headers={"Content-Disposition": f'inline; filename="{filename}"'},
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Synthesis & Voice Conversion failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Synthesis failed: {str(e)}")
 
 
 @app.post("/synthesize/upload")
@@ -229,6 +247,7 @@ async def synthesize_with_upload_endpoint(
     text: str = Form(...),
     file: Optional[UploadFile] = File(None),
     guidance: Optional[str] = Form(None),
+    engine: str = Form("rvc"),
     pitch_shift: int = Form(0),
     index_rate: float = Form(0.75),
     f0_method: str = Form("rmvpe"),
@@ -243,11 +262,12 @@ async def synthesize_with_upload_endpoint(
     if not clean_text:
         raise HTTPException(status_code=400, detail="Text cannot be empty")
 
+    engine_name = engine.lower()
     emotion_prompt = guidance
-    if auto_annotate and not clean_text.startswith("("):
+    if auto_annotate and not clean_text.startswith("(") and not clean_text.startswith("<"):
         clauses = segment_text(clean_text)
         annotated = annotator.annotate(original_text=clean_text, clauses=clauses, guidance=guidance)
-        renderer = get_renderer("rvc")
+        renderer = get_renderer(engine_name)
         rendered = renderer.render(annotated.segments)
         emotion_prompt = rendered.prompt or guidance
         clean_text = rendered.text or clean_text
@@ -265,22 +285,38 @@ async def synthesize_with_upload_endpoint(
         speaker_id = temp_speaker["id"]
 
     try:
-        wav_bytes = rvc_service.synthesize_and_convert(
-            text=clean_text,
-            emotion_prompt=emotion_prompt,
-            speaker_id=speaker_id,
-            pitch_shift=pitch_shift,
-            index_rate=index_rate,
-            f0_method=f0_method,
-            cfg_value=cfg_value,
-            inference_timesteps=inference_timesteps,
-        )
+        if engine_name in ("cosyvoice", "cosyvoice2"):
+            wav_bytes = cosyvoice_service.synthesize(
+                text=clean_text,
+                speaker_id=speaker_id,
+            )
+            filename = "synthesized_cosyvoice.wav"
+        elif engine_name in ("fishspeech", "fish_speech"):
+            wav_bytes = fishspeech_service.synthesize(
+                text=clean_text,
+                speaker_id=speaker_id,
+            )
+            filename = "synthesized_fishspeech.wav"
+        else:
+            wav_bytes = rvc_service.synthesize_and_convert(
+                text=clean_text,
+                emotion_prompt=emotion_prompt,
+                speaker_id=speaker_id,
+                pitch_shift=pitch_shift,
+                index_rate=index_rate,
+                f0_method=f0_method,
+                cfg_value=cfg_value,
+                inference_timesteps=inference_timesteps,
+            )
+            filename = "synthesized_rvc_custom.wav"
+
         return Response(
             content=wav_bytes,
             media_type="audio/wav",
-            headers={"Content-Disposition": 'inline; filename="synthesized_rvc_custom.wav"'},
+            headers={"Content-Disposition": f'inline; filename="{filename}"'},
         )
     except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Synthesis failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Synthesis failed: {str(e)}")
 
 

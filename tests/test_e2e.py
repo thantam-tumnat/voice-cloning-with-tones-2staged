@@ -74,3 +74,28 @@ def test_synthesize_with_upload_endpoint():
     assert response.status_code == 200
     assert response.headers["content-type"] == "audio/wav"
     assert len(response.content) > 100
+
+
+def test_cosyvoice_synthesize():
+    payload = {
+        "text": "<instruct>(พูดด้วยน้ำเสียงตื่นเต้น ดีใจ)</instruct> ยินดีด้วยนะ! ในที่สุดก็ทำสำเร็จแล้ว",
+        "engine": "cosyvoice",
+        "auto_annotate": False
+    }
+    response = client.post("/synthesize", json=payload)
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "audio/wav"
+    assert len(response.content) > 100
+
+
+def test_fishspeech_synthesize():
+    payload = {
+        "text": "[Tone: Joyful, cheerful] ยินดีด้วยนะ! ในที่สุดก็ทำสำเร็จแล้ว",
+        "engine": "fishspeech",
+        "auto_annotate": False
+    }
+    response = client.post("/synthesize", json=payload)
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "audio/wav"
+    assert len(response.content) > 100
+

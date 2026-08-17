@@ -104,10 +104,12 @@
             <div class="form-group flex-1">
               <label for="engine-select" class="field-label">TTS & Conversion Pipeline:</label>
               <select id="engine-select" class="custom-select">
-                <option value="rvc" selected>Emotion TTS + RVC Voice Changer ⭐</option>
-                <option value="gemini">Gemini Speech (Prompt-based Emotion)</option>
-                <option value="elevenlabs">ElevenLabs (Inline Audio Tags)</option>
-                <option value="voxcpm">SiangTTS (VoxCPM2 Instruction)</option>
+                <option value="rvc" selected>⚡ RVC v2 + Emotion TTS (ค่าเริ่มต้น / 48kHz)</option>
+                <option value="cosyvoice">🎙️ CosyVoice 2 (SE-Bridge Thai + Instruct Tags)</option>
+                <option value="fishspeech">🐟 Fish Speech 1.5 (Multilingual Native Thai)</option>
+                <option value="elevenlabs">✨ ElevenLabs (Multilingual v3 Audio Tags)</option>
+                <option value="gemini">🧠 Gemini Speech (Prompt-based Emotion)</option>
+                <option value="voxcpm">🔊 SiangTTS (VoxCPM2 Instruction)</option>
               </select>
             </div>
             <div class="form-group flex-1" id="speaker-group">
@@ -264,8 +266,9 @@
             <div class="editor-section">
               <!-- Quick Insert Toolbar -->
               <div class="tag-toolbar">
-                <span class="toolbar-label">คลิกเพื่อแทรก Tag อารมณ์:</span>
-                <div class="tag-buttons-row">
+                <span class="toolbar-label">คลิกเพื่อแทรก Tag อารมณ์ & Actions:</span>
+                <!-- Standard RVC & ElevenLabs Audio Tags -->
+                <div class="tag-buttons-row" id="toolbar-rvc-tags">
                   <button type="button" class="tag-insert-btn tone-calm" data-tag="[calm] ">+ [calm]</button>
                   <button type="button" class="tag-insert-btn tone-sad" data-tag="[sad] ">+ [sad]</button>
                   <button type="button" class="tag-insert-btn tone-angry" data-tag="[angry] ">+ [angry]</button>
@@ -273,6 +276,22 @@
                   <button type="button" class="tag-insert-btn tone-excited" data-tag="[excited] ">+ [excited]</button>
                   <button type="button" class="tag-insert-btn tone-nervous" data-tag="[nervous] ">+ [nervous]</button>
                   <button type="button" class="tag-insert-btn tone-sarcastic" data-tag="[sarcastic] ">+ [sarcastic]</button>
+                </div>
+                <!-- CosyVoice Specific Instruct & Action Tags -->
+                <div class="tag-buttons-row" id="toolbar-cosy-tags" style="margin-top:6px;">
+                  <span style="font-size:0.75rem; color:var(--text-muted); align-self:center;">CosyVoice:</span>
+                  <button type="button" class="tag-insert-btn" data-tag="<instruct>(พูดด้วยน้ำเสียงตื่นเต้น ดีใจ)</instruct> ">+ &lt;instruct&gt;</button>
+                  <button type="button" class="tag-insert-btn" data-tag="<laughter> ฮ่าๆ </laughter> ">+ &lt;laughter&gt;</button>
+                  <button type="button" class="tag-insert-btn" data-tag="<whisper> กระซิบ </whisper> ">+ &lt;whisper&gt;</button>
+                  <button type="button" class="tag-insert-btn" data-tag="<breath> ">+ &lt;breath&gt;</button>
+                </div>
+                <!-- Fish Speech Tone Tags -->
+                <div class="tag-buttons-row" id="toolbar-fish-tags" style="margin-top:6px;">
+                  <span style="font-size:0.75rem; color:var(--text-muted); align-self:center;">FishSpeech:</span>
+                  <button type="button" class="tag-insert-btn tone-excited" data-tag="[Tone: Extremely excited, enthusiastic] ">+ [Tone: Excited]</button>
+                  <button type="button" class="tag-insert-btn tone-angry" data-tag="[Tone: Furious, angry shouting] ">+ [Tone: Angry]</button>
+                  <button type="button" class="tag-insert-btn tone-sad" data-tag="[Tone: Melancholic, sad, tearful] ">+ [Tone: Sad]</button>
+                  <button type="button" class="tag-insert-btn tone-calm" data-tag="[Tone: Peaceful, soft and warm] ">+ [Tone: Calm]</button>
                 </div>
               </div>
 

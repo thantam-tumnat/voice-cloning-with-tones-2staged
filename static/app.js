@@ -170,18 +170,44 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Engine Switch Visibility
+  // Engine Switch Visibility & Toolbar Focus
   function updateEngineVisibility() {
     const eng = engineSelect.value;
+    const rvcToolbars = document.getElementById('toolbar-rvc-tags');
+    const cosyToolbars = document.getElementById('toolbar-cosy-tags');
+    const fishToolbars = document.getElementById('toolbar-fish-tags');
+
     if (eng === 'rvc' || eng === 'voxcpm' || eng === 'siangtts') {
       speakerGroup.classList.remove('hidden');
       uploadVoiceArea.classList.remove('hidden');
     } else {
-      speakerGroup.classList.add('hidden');
-      uploadVoiceArea.classList.add('hidden');
+      speakerGroup.classList.remove('hidden');
+      uploadVoiceArea.classList.remove('hidden');
+    }
+
+    if (cosyToolbars && fishToolbars && rvcToolbars) {
+      if (eng === 'cosyvoice') {
+        cosyToolbars.style.display = 'flex';
+        fishToolbars.style.display = 'none';
+        rvcToolbars.style.opacity = '0.7';
+      } else if (eng === 'fishspeech') {
+        cosyToolbars.style.display = 'none';
+        fishToolbars.style.display = 'flex';
+        rvcToolbars.style.opacity = '0.7';
+      } else {
+        cosyToolbars.style.display = 'flex';
+        fishToolbars.style.display = 'flex';
+        rvcToolbars.style.opacity = '1.0';
+      }
     }
   }
-  engineSelect.addEventListener('change', updateEngineVisibility);
+  engineSelect.addEventListener('change', () => {
+    updateEngineVisibility();
+    // If output is present, automatically re-render for the selected engine!
+    if (outputEditableText.value.trim()) {
+      handleAnnotate();
+    }
+  });
   updateEngineVisibility();
 
   // File Upload & Drag-and-Drop
@@ -293,6 +319,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function cleanTagsForSpeech(text) {
     let t = (text || '').replace(/\[[a-zA-Z\s]+\]/g, '');
+    t = t.replace(/\[Tone:\s*.*?\]/gi, '');
+    t = t.replace(/<instruct>.*?<\/instruct>/gi, '');
+    t = t.replace(/<\/?(?:whisper|laughter|breath)>/gi, '');
     t = t.replace(/\([a-zA-Z\s,.-ก-๙]+\)/g, '');
     return t.trim();
   }
@@ -318,9 +347,57 @@ document.addEventListener('DOMContentLoaded', () => {
     return { chunks, clean_tts_text: cleanParts.join(' ') };
   }
 
-  // Tag Parsing & Sync Helper
+  // Tag Parsing & Sync Helper for all engines (RVC, CosyVoice, FishSpeech, ElevenLabs)
   function parseSegmentsFromText(text) {
     if (!text || !text.trim()) return [];
+    
+    // Check CosyVoice <instruct>(...)</instruct> blocks
+    if (text.includes('<instruct>')) {
+      const parts = text.split(/<instruct>\((.*?)\)<\/instruct>/gi);
+      const segments = [];
+      for (let i = 1; i < parts.length; i += 2) {
+        const instructDesc = (parts[i] || '').toLowerCase();
+        const content = (parts[i + 1] || '').trim();
+        let tone = 'neutral';
+        if (instructDesc.includes('ตื่นเต้น') || instructDesc.includes('ดีใจ')) tone = 'excited';
+        else if (instructDesc.includes('ร่าเริง') || instructDesc.includes('สุข')) tone = 'happy';
+        else if (instructDesc.includes('เศร้า') || instructDesc.includes('เสียใจ')) tone = 'sad';
+        else if (instructDesc.includes('โกรธ') || instructDesc.includes('ดุดัน')) tone = 'angry';
+        else if (instructDesc.includes('สงบ') || instructDesc.includes('ผ่อนคลาย')) tone = 'calm';
+        else if (instructDesc.includes('ประชด')) tone = 'sarcastic';
+        else if (instructDesc.includes('ประหม่า')) tone = 'nervous';
+
+        if (content) {
+          segments.push({ text: content, tone: tone, intensity: 2 });
+        }
+      }
+      if (segments.length > 0) return segments;
+    }
+
+    // Check FishSpeech [Tone: ...] blocks
+    if (/\[Tone:\s*.*?\]/i.test(text)) {
+      const parts = text.split(/\[Tone:\s*(.*?)\]/gi);
+      const segments = [];
+      for (let i = 1; i < parts.length; i += 2) {
+        const toneDesc = (parts[i] || '').toLowerCase();
+        const content = (parts[i + 1] || '').trim();
+        let tone = 'neutral';
+        if (toneDesc.includes('excite') || toneDesc.includes('energetic')) tone = 'excited';
+        else if (toneDesc.includes('joy') || toneDesc.includes('happy') || toneDesc.includes('smile')) tone = 'happy';
+        else if (toneDesc.includes('sad') || toneDesc.includes('melanchol') || toneDesc.includes('tear')) tone = 'sad';
+        else if (toneDesc.includes('angry') || toneDesc.includes('furious') || toneDesc.includes('shout')) tone = 'angry';
+        else if (toneDesc.includes('calm') || toneDesc.includes('peace') || toneDesc.includes('soft')) tone = 'calm';
+        else if (toneDesc.includes('sarcas') || toneDesc.includes('mock')) tone = 'sarcastic';
+        else if (toneDesc.includes('nervous') || toneDesc.includes('hesitant')) tone = 'nervous';
+
+        if (content) {
+          segments.push({ text: content, tone: tone, intensity: 2 });
+        }
+      }
+      if (segments.length > 0) return segments;
+    }
+
+    // Standard bracket tags like [excited], [sad], [calm]
     const tagPattern = /\[(calm|sad|happy|happily|angry|excited|nervous|sarcastic|neutral)\]/gi;
     const matches = [...text.matchAll(tagPattern)];
     
@@ -489,6 +566,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function highlightAudioTags(text) {
     let formatted = text.replace(/(\[[a-zA-Z\s]+\])/g, '<span class="tag-highlight">$1</span>');
+    formatted = formatted.replace(/(\[Tone:\s*.*?\])/gi, '<span class="tag-highlight" style="background:#0e4429;border-color:#3fb950;color:#7ee787;">$1</span>');
+    formatted = formatted.replace(/(<instruct>.*?<\/instruct>)/gi, '<span class="instruction-highlight" style="background:#382500;border-color:#d29922;color:#e3b341;">$1</span>');
+    formatted = formatted.replace(/(<\/?(?:whisper|laughter|breath)>)/gi, '<span class="tag-highlight" style="background:#21262d;border-color:#8b949e;color:#58a6ff;">$1</span>');
     formatted = formatted.replace(/(\([a-zA-Z\s,.-ก-๙]+\))/g, '<span class="instruction-highlight">$1</span>');
     return formatted;
   }

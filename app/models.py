@@ -51,7 +51,7 @@ class AnnotateResponse(BaseModel):
 
 class RenderRequest(BaseModel):
     segments: list[Segment]
-    engine: Literal["elevenlabs", "gemini", "voxcpm", "siangtts", "rvc"]
+    engine: Literal["rvc", "cosyvoice", "fishspeech", "gemini", "elevenlabs", "voxcpm", "siangtts"]
 
 
 class RenderResponse(BaseModel):
@@ -62,11 +62,11 @@ class RenderResponse(BaseModel):
 class SpeakRequest(BaseModel):
     text: str = Field(min_length=1, max_length=5000)
     guidance: Optional[str] = Field(default=None, description="Optional custom emotion/tone guidance")
-    engine: Literal["elevenlabs", "gemini", "voxcpm", "siangtts", "rvc"] = "rvc"
+    engine: Literal["rvc", "cosyvoice", "fishspeech", "gemini", "elevenlabs", "voxcpm", "siangtts"] = "rvc"
 
 
 class SpeakResponse(BaseModel):
-    engine: Literal["elevenlabs", "gemini", "voxcpm", "siangtts", "rvc"]
+    engine: Literal["rvc", "cosyvoice", "fishspeech", "gemini", "elevenlabs", "voxcpm", "siangtts"]
     text: str
     clean_tts_text: Optional[str] = None
     tts_chunks: Optional[List[TTSChunkInfo]] = None
@@ -98,7 +98,7 @@ class SynthesizeRequest(BaseModel):
     text: str = Field(min_length=1, max_length=5000)
     speaker_id: Optional[str] = None
     guidance: Optional[str] = None
-    engine: Literal["rvc", "gemini", "voxcpm", "siangtts", "elevenlabs"] = "rvc"
+    engine: Literal["rvc", "cosyvoice", "fishspeech", "gemini", "voxcpm", "siangtts", "elevenlabs"] = "rvc"
     pitch_shift: int = Field(default=0, ge=-24, le=24, description="RVC Pitch shift in semitones (-12 to +12)")
     index_rate: float = Field(default=0.75, ge=0.0, le=1.0, description="RVC feature retrieval strength")
     f0_method: Literal["rmvpe", "harvest", "pm", "crepe"] = "rmvpe"
